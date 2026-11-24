@@ -1,0 +1,1965 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>事业单位岗位智能筛选助手</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS (XLSX) CDN for parsing & exporting Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Google Font: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* =========================================
+       全局防穿模与马卡龙治愈系视觉变量
+       ========================================= */
+    :root {
+      --bg-base: #fdfcf7;
+      --card-bg: #ffffff;
+      --cream-yellow: #fcf4cd;
+      --cream-yellow-text: #7a5f14;
+      --lavender: #e0d4f7;
+      --lavender-dark: #5b3f8f;
+      --pastel-pink: #fad6df;
+      --pastel-pink-text: #8c304a;
+      --grass-green: #ddf0d8;
+      --grass-green-text: #2b5926;
+      --baby-blue: #dbeeff;
+      --baby-blue-text: #234e70;
+      --text-title: #3a3247;
+      --text-body: #534b62;
+      --text-muted: #7d758c;
+      --border-soft: rgba(125, 117, 140, 0.14);
+      --shadow-soft: 0 10px 30px -8px rgba(90, 78, 114, 0.08);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      overflow-x: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      color: var(--text-body);
+      background:
+        radial-gradient(circle at 8% 6%, rgba(252, 244, 205, 0.55) 0%, transparent 38%),
+        radial-gradient(circle at 92% 10%, rgba(219, 238, 255, 0.55) 0%, transparent 40%),
+        radial-gradient(circle at 88% 85%, rgba(221, 240, 216, 0.48) 0%, transparent 42%),
+        radial-gradient(circle at 12% 88%, rgba(250, 214, 223, 0.36) 0%, transparent 38%),
+        var(--bg-base);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 防溢出硬性保护 */
+    .safe-text {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .macaron-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-soft);
+      border-radius: 20px;
+      box-shadow: var(--shadow-soft);
+      min-width: 0;
+    }
+
+    /* 拖拽上传区交互 */
+    .dropzone-area {
+      background: linear-gradient(135deg, rgba(219, 238, 255, 0.45), rgba(224, 212, 247, 0.25));
+      border: 2px dashed #9fc5e8;
+      border-radius: 18px;
+      transition: all 0.22s ease;
+    }
+
+    .dropzone-area.drag-over {
+      background: rgba(219, 238, 255, 0.85);
+      border-color: #5b3f8f;
+      transform: scale(1.005);
+    }
+
+    /* 表单输入框统一风格 */
+    .soft-input {
+      width: 100%;
+      background: #faf9fd;
+      border: 1.5px solid rgba(125, 117, 140, 0.2);
+      border-radius: 12px;
+      padding: 10px 13px;
+      font-size: 14px;
+      color: var(--text-title);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+      outline: none;
+    }
+
+    .soft-input:focus {
+      background: #ffffff;
+      border-color: #a98ee3;
+      box-shadow: 0 0 0 3px rgba(224, 212, 247, 0.55);
+    }
+
+    /* 单选/多选胶囊按钮 */
+    .pill-option {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 13px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-body);
+      background: #f7f5fb;
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.18s ease;
+      line-height: 1.3;
+    }
+
+    .pill-option:hover {
+      background: #f0ebf9;
+    }
+
+    .pill-option.active-lavender {
+      background: var(--lavender);
+      color: var(--lavender-dark);
+      border-color: #b79ee6;
+      font-weight: 600;
+    }
+
+    .pill-option.active-blue {
+      background: var(--baby-blue);
+      color: var(--baby-blue-text);
+      border-color: #9ec8eb;
+      font-weight: 600;
+    }
+
+    .pill-option.active-yellow {
+      background: var(--cream-yellow);
+      color: var(--cream-yellow-text);
+      border-color: #e6d17a;
+      font-weight: 600;
+    }
+
+    .pill-option.active-pink {
+      background: var(--pastel-pink);
+      color: var(--pastel-pink-text);
+      border-color: #e7a4b6;
+      font-weight: 600;
+    }
+
+    /* 主按钮渐变 */
+    .btn-primary-macaron {
+      background: linear-gradient(135deg, #c7b2f3 0%, #a8cffa 100%);
+      color: #2f2347;
+      font-weight: 700;
+      border-radius: 14px;
+      border: 1px solid rgba(133, 108, 189, 0.25);
+      box-shadow: 0 8px 20px -6px rgba(140, 114, 196, 0.42);
+      transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    }
+
+    .btn-primary-macaron:hover {
+      filter: brightness(0.98);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px -6px rgba(140, 114, 196, 0.5);
+    }
+
+    .btn-primary-macaron:active {
+      transform: translateY(0);
+    }
+
+    /* 轻提示 Toast */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      max-width: calc(100vw - 32px);
+    }
+
+    .toast-item {
+      background: #3a3247;
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(58, 50, 71, 0.25);
+      animation: toastIn 0.22s ease forwards;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 卡片平滑展开 */
+    .details-panel {
+      transition: all 0.2s ease;
+    }
+  </style>
+</head>
+<body class="antialiased">
+  <!-- 主容器 -->
+  <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+    <!-- ================= 顶部标题栏 ================= -->
+    <header class="macaron-card p-5 sm:p-6 mb-6 relative overflow-hidden">
+      <div class="absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-50 pointer-events-none" style="background: #fcf4cd;"></div>
+      <div class="absolute -bottom-12 left-1/3 w-36 h-36 rounded-full opacity-35 pointer-events-none" style="background: #e0d4f7;"></div>
+
+      <div class="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold" style="background: #fcf4cd; color: #7a5f14;">
+              ✨ 事业编 / 公考通用
+            </span>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold" style="background: #ddf0d8; color: #2b5926;">
+              纯本地解析 · 隐私安全
+            </span>
+          </div>
+          <h1 class="text-2xl sm:text-3xl font-bold tracking-tight safe-text" style="color: #3a3247;">
+            事业单位岗位智能筛选助手
+          </h1>
+          <p class="mt-1.5 text-sm sm:text-base safe-text" style="color: #7d758c;">
+            随时拖入最新 Excel 岗位表，自动识别多级表头、向上兼容专业代码，区分绿灯确定可报与黄灯待核实岗位。
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button type="button" id="btn-fill-demo"
+            class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition hover:opacity-90 cursor-pointer"
+            style="background: #e0d4f7; color: #4f377a;">
+            🧪 填入示例（28岁硕士政治经济学/本科数学）
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= 顶部 Excel 底表管理区 ================= -->
+    <section class="macaron-card p-4 sm:p-5 mb-6">
+      <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+        <!-- 拖拽上传区域 -->
+        <div id="dropzone" class="dropzone-area flex-1 min-w-0 p-4 sm:p-5 cursor-pointer flex flex-col sm:flex-row items-center justify-between gap-3">
+          <input type="file" id="excel-input" accept=".xlsx,.xls" class="hidden" />
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 text-xl" style="background: #ffffff; box-shadow: 0 4px 12px rgba(35, 78, 112, 0.08);">
+              📊
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm sm:text-base font-semibold safe-text" style="color: #234e70;">
+                点击或拖拽最新《岗位条件一览表》(.xlsx / .xls) 到此处替换底表
+              </p>
+              <p class="text-xs mt-0.5 safe-text" style="color: #536e87;">
+                支持自动识别合并单元格双层表头，所有数据仅在您的浏览器本地运算，不上传服务器
+              </p>
+            </div>
+          </div>
+          <span class="px-4 py-2 rounded-xl text-xs font-semibold shrink-0" style="background: #ffffff; color: #234e70; border: 1px solid #b5d6f2;">
+            选择文件
+          </span>
+        </div>
+
+        <!-- 当前底表状态卡片 -->
+        <div class="lg:w-80 shrink-0 rounded-2xl p-4 flex flex-col justify-between gap-2.5" style="background: #faf9fd; border: 1px solid rgba(125, 117, 140, 0.14);">
+          <div class="flex items-start justify-between gap-2 min-w-0">
+            <div class="min-w-0">
+              <span class="text-xs font-medium" style="color: #7d758c;">当前已加载底表</span>
+              <p id="current-file-name" class="text-sm font-bold mt-0.5 safe-text" style="color: #3a3247;">
+                内置演示表：成都市事业编精选样例.xlsx
+              </p>
+            </div>
+            <span id="total-jobs-badge" class="px-2.5 py-1 rounded-full text-xs font-bold shrink-0" style="background: #dbeeff; color: #234e70;">
+              共 8 岗
+            </span>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-purple-100/80">
+            <span id="parse-status-text" class="text-xs safe-text" style="color: #2b5926;">
+              ● 已就绪，可直接筛选
+            </span>
+            <button type="button" id="btn-restore-demo"
+              class="text-xs font-semibold px-2.5 py-1 rounded-lg transition hover:opacity-80 cursor-pointer"
+              style="background: #fcf4cd; color: #7a5f14;">
+              恢复演示数据
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 主体两栏布局（桌面端左右分栏，移动端单栏） ================= -->
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- ============ 左侧：四大类筛选条件表单 ============ -->
+      <section class="lg:col-span-5 xl:col-span-5 min-w-0 space-y-4">
+        <form id="filter-form" class="space-y-4" onsubmit="return false;">
+
+          <!-- 1. 基础条件 -->
+          <div class="macaron-card p-5">
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-xl flex items-center justify-center text-sm font-bold shrink-0" style="background: #e0d4f7; color: #4f377a;">1</span>
+              <h2 class="text-base font-bold" style="color: #3a3247;">基础条件</h2>
+              <span class="ml-auto text-xs px-2.5 py-0.5 rounded-full font-medium" style="background: #f5f0fc; color: #5b3f8f;">年龄 · 面貌</span>
+            </div>
+
+            <div class="space-y-4">
+              <!-- 出生年份 -->
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                  <label for="birth-year" class="text-sm font-semibold" style="color: #3a3247;">出生年份</label>
+                  <span id="age-preview" class="text-xs font-semibold px-2.5 py-0.5 rounded-full" style="background: #e0d4f7; color: #4f377a;">
+                    约 28 岁
+                  </span>
+                </div>
+                <input type="number" id="birth-year" min="1965" max="2010" value="1998" placeholder="例如：1998" class="soft-input" />
+              </div>
+
+              <!-- 政治面貌 -->
+              <div>
+                <label class="block text-sm font-semibold mb-2" style="color: #3a3247;">政治面貌</label>
+                <div class="flex flex-wrap gap-2" id="politics-group">
+                  <label class="pill-option active-lavender">
+                    <input type="radio" name="politics" value="non_party" checked class="hidden" />
+                    <span>非党员（群众/团员）</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="radio" name="politics" value="party" class="hidden" />
+                    <span>中共党员（含预备）</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 特殊身份 -->
+              <div>
+                <label class="block text-sm font-semibold mb-2" style="color: #3a3247;">特殊身份（可选）</label>
+                <div class="flex flex-wrap gap-2" id="special-group">
+                  <label class="pill-option">
+                    <input type="checkbox" name="special" value="veteran" class="hidden" />
+                    <span>🎖️ 退役军人</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="checkbox" name="special" value="disabled" class="hidden" />
+                    <span>♿ 持有残疾人证</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 学历与专业（核心） -->
+          <div class="macaron-card p-5">
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-xl flex items-center justify-center text-sm font-bold shrink-0" style="background: #dbeeff; color: #234e70;">2</span>
+              <h2 class="text-base font-bold" style="color: #3a3247;">学历与专业</h2>
+              <span class="ml-auto text-xs px-2.5 py-0.5 rounded-full font-medium" style="background: #edf6ff; color: #234e70;">向上兼容匹配</span>
+            </div>
+
+            <div class="space-y-4">
+              <!-- 最高学历 -->
+              <div>
+                <label class="block text-sm font-semibold mb-2" style="color: #3a3247;">最高学历</label>
+                <div class="flex flex-wrap gap-2" id="education-group">
+                  <label class="pill-option">
+                    <input type="radio" name="education" value="bachelor" class="hidden" />
+                    <span>大学本科</span>
+                  </label>
+                  <label class="pill-option active-blue">
+                    <input type="radio" name="education" value="master" checked class="hidden" />
+                    <span>硕士研究生</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="radio" name="education" value="phd" class="hidden" />
+                    <span>博士研究生</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 最高学历专业与代码 -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="min-w-0">
+                  <label for="major-name" class="block text-sm font-semibold mb-1.5" style="color: #3a3247;">最高学历专业名称</label>
+                  <input type="text" id="major-name" value="政治经济学" placeholder="如：政治经济学" class="soft-input" />
+                </div>
+                <div class="min-w-0">
+                  <label for="major-code" class="block text-sm font-semibold mb-1.5" style="color: #3a3247;">学科专业代码</label>
+                  <input type="text" id="major-code" value="020101" placeholder="如：020101" class="soft-input" />
+                </div>
+              </div>
+              <p class="text-xs safe-text leading-relaxed px-3 py-2 rounded-xl" style="background: #f4f9ff; color: #3a6080;">
+                💡 填写 6 位代码（如 <code class="font-bold">020101</code>）会自动派生匹配一级学科 <code class="font-bold">0201</code>、门类 <code class="font-bold">02</code> 及不限专业，且严格防串码。
+              </p>
+
+              <!-- 本科专业兜底开关（仅硕士/博士显示） -->
+              <div id="bachelor-fallback-wrapper" class="rounded-2xl p-3.5 transition-all" style="background: #f4f9ff; border: 1.5px solid #cde4fa;">
+                <label class="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input type="checkbox" id="enable-bachelor-fallback" checked class="mt-1 w-4 h-4 accent-sky-600 rounded cursor-pointer shrink-0" />
+                  <div class="min-w-0">
+                    <span class="text-sm font-bold block safe-text" style="color: #234e70;">
+                      同时用本科专业捞取「本科及以上」岗位
+                    </span>
+                    <span class="text-xs block mt-0.5 safe-text" style="color: #517594;">
+                      硕士/博士专业受限时，自动尝试用本科学历与专业匹配，命中后在黄灯区提示核实
+                    </span>
+                  </div>
+                </label>
+
+                <div id="bachelor-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-sky-200/70">
+                  <div class="min-w-0">
+                    <label for="bachelor-major-name" class="block text-xs font-semibold mb-1" style="color: #234e70;">本科专业名称</label>
+                    <input type="text" id="bachelor-major-name" value="数学与应用数学" placeholder="如：数学与应用数学" class="soft-input bg-white" />
+                  </div>
+                  <div class="min-w-0">
+                    <label for="bachelor-major-code" class="block text-xs font-semibold mb-1" style="color: #234e70;">本科专业代码</label>
+                    <input type="text" id="bachelor-major-code" value="070101" placeholder="如：070101" class="soft-input bg-white" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 工作经历与证书 -->
+          <div class="macaron-card p-5">
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-xl flex items-center justify-center text-sm font-bold shrink-0" style="background: #fcf4cd; color: #7a5f14;">3</span>
+              <h2 class="text-base font-bold" style="color: #3a3247;">工作经历与证书</h2>
+              <span class="ml-auto text-xs px-2.5 py-0.5 rounded-full font-medium" style="background: #fefae6; color: #7a5f14;">年限 · 职称</span>
+            </div>
+
+            <div class="space-y-4">
+              <!-- 工作年限 -->
+              <div>
+                <label for="work-years" class="block text-sm font-semibold mb-1.5" style="color: #3a3247;">工作年限 / 身份</label>
+                <select id="work-years" class="soft-input cursor-pointer">
+                  <option value="fresh">应届毕业生（2026 / 2027 届）</option>
+                  <option value="0">无工作经验（非应届，0 年）</option>
+                  <option value="1">1 年工作经验</option>
+                  <option value="2" selected>2 年工作经验</option>
+                  <option value="3">3-4 年工作经验</option>
+                  <option value="5">5 年及以上工作经验</option>
+                </select>
+              </div>
+
+              <!-- 持有证书/职称 -->
+              <div>
+                <label class="block text-sm font-semibold mb-2" style="color: #3a3247;">持有证书 / 职称（可多选）</label>
+                <div class="flex flex-wrap gap-2" id="cert-group">
+                  <label class="pill-option">
+                    <input type="checkbox" name="certs" value="中级经济师" class="hidden" />
+                    <span>中级经济师</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="checkbox" name="certs" value="初级/中级会计师" class="hidden" />
+                    <span>初级/中级会计师</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="checkbox" name="certs" value="中学教师资格证" class="hidden" />
+                    <span>中学教师资格证</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="checkbox" name="certs" value="英语六级" class="hidden" />
+                    <span>英语六级</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="checkbox" name="certs" value="英语专八" class="hidden" />
+                    <span>英语专八</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="checkbox" name="certs" value="医师资格证" class="hidden" />
+                    <span>医师资格证</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="checkbox" name="certs" value="法律职业资格证" class="hidden" />
+                    <span>法律职业资格证</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 自定义证书关键词 -->
+              <div>
+                <label for="custom-certs" class="block text-xs font-semibold mb-1.5" style="color: #7d758c;">其他证书 / 职称关键词（多个用空格或逗号分隔）</label>
+                <input type="text" id="custom-certs" placeholder="如：一级教师、注册会计师、软考中级" class="soft-input" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. 报考偏好（可选） -->
+          <div class="macaron-card p-5">
+            <div class="flex items-center gap-2.5 mb-4">
+              <span class="w-7 h-7 rounded-xl flex items-center justify-center text-sm font-bold shrink-0" style="background: #fad6df; color: #8c304a;">4</span>
+              <h2 class="text-base font-bold" style="color: #3a3247;">报考偏好（可选）</h2>
+              <span class="ml-auto text-xs px-2.5 py-0.5 rounded-full font-medium" style="background: #fdf0f3; color: #8c304a;">精准过滤</span>
+            </div>
+
+            <div class="space-y-4">
+              <!-- 笔试类别 -->
+              <div>
+                <label class="block text-sm font-semibold mb-2" style="color: #3a3247;">笔试类别</label>
+                <div class="flex flex-wrap gap-2" id="exam-type-group">
+                  <label class="pill-option active-pink">
+                    <input type="radio" name="examType" value="all" checked class="hidden" />
+                    <span>全部类别</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="radio" name="examType" value="综合类" class="hidden" />
+                    <span>综合类</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="radio" name="examType" value="教育类" class="hidden" />
+                    <span>教育类</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="radio" name="examType" value="卫生类" class="hidden" />
+                    <span>卫生类</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 排除项 -->
+              <div>
+                <label class="block text-sm font-semibold mb-2" style="color: #3a3247;">排除项</label>
+                <div class="flex flex-wrap gap-2" id="exclude-group">
+                  <label class="pill-option">
+                    <input type="checkbox" id="exclude-shift" class="hidden" />
+                    <span>🌙 排除需值班/夜班岗位</span>
+                  </label>
+                  <label class="pill-option">
+                    <input type="checkbox" id="exclude-service" class="hidden" />
+                    <span>🔒 排除有最低服务期岗位</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 底部操作按钮栏 -->
+          <div class="flex flex-wrap items-center gap-3 pt-1">
+            <button type="button" id="btn-run-filter" class="btn-primary-macaron flex-1 min-w-[180px] py-3.5 px-6 text-base cursor-pointer">
+              🔍 开始智能筛选
+            </button>
+            <button type="button" id="btn-reset"
+              class="px-5 py-3.5 rounded-2xl text-sm font-bold transition hover:opacity-90 cursor-pointer shrink-0"
+              style="background: #fad6df; color: #8c304a;">
+              重置条件
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ============ 右侧：分级筛选结果展示区 ============ -->
+      <section class="lg:col-span-7 xl:col-span-7 min-w-0 space-y-4">
+
+        <!-- 顶部统计概览 -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="macaron-card p-4 text-center">
+            <p class="text-xs font-medium" style="color: #7d758c;">底表总岗位</p>
+            <p id="stat-total" class="text-2xl sm:text-3xl font-bold mt-1" style="color: #3a3247;">0</p>
+          </div>
+          <div class="macaron-card p-4 text-center" style="background: linear-gradient(180deg, #ffffff 0%, #f3faf1 100%);">
+            <p class="text-xs font-semibold" style="color: #2b5926;">🟢 确定可报</p>
+            <p id="stat-green" class="text-2xl sm:text-3xl font-bold mt-1" style="color: #2b5926;">0</p>
+          </div>
+          <div class="macaron-card p-4 text-center" style="background: linear-gradient(180deg, #ffffff 0%, #fefbec 100%);">
+            <p class="text-xs font-semibold" style="color: #7a5f14;">🟡 条件待核实</p>
+            <p id="stat-yellow" class="text-2xl sm:text-3xl font-bold mt-1" style="color: #7a5f14;">0</p>
+          </div>
+        </div>
+
+        <!-- 切换 Tab + 搜索 + 导出工具栏 -->
+        <div class="macaron-card p-4 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <!-- Tabs -->
+            <div class="flex flex-wrap items-center gap-2" id="result-tabs">
+              <button type="button" data-tab="all"
+                class="tab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer"
+                style="background: #e0d4f7; color: #4f377a;">
+                📋 全部符合 (<span id="tab-count-all">0</span>)
+              </button>
+              <button type="button" data-tab="green"
+                class="tab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer"
+                style="background: #f5f3fa; color: #534b62;">
+                🟢 确定可报 (<span id="tab-count-green">0</span>)
+              </button>
+              <button type="button" data-tab="yellow"
+                class="tab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer"
+                style="background: #f5f3fa; color: #534b62;">
+                🟡 条件待核实 (<span id="tab-count-yellow">0</span>)
+              </button>
+            </div>
+
+            <!-- 导出与复制按钮 -->
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" id="btn-copy-report"
+                class="px-3.5 py-2 rounded-xl text-xs font-semibold transition hover:opacity-90 cursor-pointer"
+                style="background: #dbeeff; color: #234e70;">
+                📋 一键复制微信汇报
+              </button>
+              <button type="button" id="btn-export-excel"
+                class="px-3.5 py-2 rounded-xl text-xs font-semibold transition hover:opacity-90 cursor-pointer"
+                style="background: #ddf0d8; color: #2b5926;">
+                📥 导出精简 Excel
+              </button>
+            </div>
+          </div>
+
+          <!-- 结果区关键字搜索 -->
+          <div class="relative">
+            <input type="text" id="result-search" placeholder="在筛选结果中搜索单位名称、岗位名称或编码..." class="soft-input pl-9" />
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm pointer-events-none" style="color: #7d758c;">🔎</span>
+          </div>
+        </div>
+
+        <!-- 结果卡片列表 -->
+        <div id="results-container" class="space-y-4">
+          <!-- 动态渲染岗位卡片 -->
+        </div>
+
+      </section>
+    </main>
+
+    <!-- 页脚提示 -->
+    <footer class="mt-10 pb-6 text-center text-xs safe-text" style="color: #7d758c;">
+      提示：自动筛选结果仅供快速初筛参考，正式报名前请务必以官方公告原文及招聘单位电话审核口径为准。
+    </footer>
+  </div>
+
+  <!-- Toast 容器 -->
+  <div id="toast-container"></div>
+
+  <script>
+    /* =========================================================================
+       1. 内置 8 条真实感演示数据（成都市事业编典型场景）
+       ========================================================================= */
+    const DEMO_JOBS = [
+      {
+        seq: '78',
+        unit: '成都市青年发展中心',
+        jobName: '公共管理岗',
+        jobCode: '201002023001',
+        count: '1',
+        category: '七级管理岗位及以下',
+        scope: '全国',
+        age: '1987年及以后出生（研究生放宽至1982年及以后出生）',
+        politics: '不限',
+        education: '大学本科及以上',
+        degree: '学士及以上',
+        major: '本科：法学类、公共管理类、工商管理类；研究生：不限专业',
+        title: '无',
+        certificate: '无',
+        experience: '本科学历报考需具有两年以上基层工作经历',
+        examType: '综合类（《综合能力测试》+《公共基础知识》）',
+        interview: '结构化面试（入围比例5:1，合格线75分）',
+        scoreRatio: '笔试50% + 面试50%',
+        servicePeriod: '无',
+        remark: '无',
+        phone: '杨老师 028-61310305',
+        extra: {}
+      },
+      {
+        seq: '183',
+        unit: '成都市第五十二中学',
+        jobName: '中学数学教师',
+        jobCode: '201002075005',
+        count: '1',
+        category: '专业技术四级岗位及以下',
+        scope: '全国',
+        age: '1987年及以后出生',
+        politics: '不限',
+        education: '大学本科及以上',
+        degree: '学士及以上',
+        major: '本科：070101数学与应用数学；研究生：0701数学、045104学科教学（数学）',
+        title: '无',
+        certificate: '须于2027年8月31日前取得对应学科中学教师资格证',
+        experience: '本科学历报考需具有两年以上基层工作经历',
+        examType: '教育类（《教育公共基础》）',
+        interview: '考生试讲（入围比例5:1，合格线60分）',
+        scoreRatio: '笔试40% + 面试60%',
+        servicePeriod: '无',
+        remark: '无',
+        phone: '徐老师 028-87957236',
+        extra: {}
+      },
+      {
+        seq: '104',
+        unit: '成都市广播电视台',
+        jobName: '全媒体运营',
+        jobCode: '201002060002',
+        count: '2',
+        category: '专业技术十级岗位及以下',
+        scope: '全国',
+        age: '1987年及以后出生',
+        politics: '不限',
+        education: '硕士研究生及以上',
+        degree: '硕士及以上',
+        major: '02经济学、0503新闻传播学、1202工商管理',
+        title: '无',
+        certificate: '无',
+        experience: '具有2年以上持有《互联网新闻信息服务许可证》单位的工作经历（需提供劳动合同、社保及单位许可证）',
+        examType: '综合类',
+        interview: '结构化面试（入围比例3:1，合格线70分）',
+        scoreRatio: '笔试40% + 面试60%',
+        servicePeriod: '无',
+        remark: '无',
+        phone: '耿萌 028-86020583',
+        extra: {}
+      },
+      {
+        seq: '108',
+        unit: '成都市互联网信息中心',
+        jobName: '互联网内容建设与管理岗',
+        jobCode: '201002062001',
+        count: '1',
+        category: '专业技术十级岗位及以下',
+        scope: '全国',
+        age: '1987年及以后出生',
+        politics: '中共党员（含预备）',
+        education: '硕士研究生及以上',
+        degree: '硕士及以上',
+        major: '0201理论经济学、0302政治学、0503新闻传播学',
+        title: '无',
+        certificate: '无',
+        experience: '无',
+        examType: '综合类',
+        interview: '结构化面试（入围比例3:1）',
+        scoreRatio: '笔试50% + 面试50%',
+        servicePeriod: '无',
+        remark: '需适应节假日、夜间值班',
+        phone: '张老师 028-61881234',
+        extra: {}
+      },
+      {
+        seq: '89',
+        unit: '成都市经济发展研究院',
+        jobName: '研究岗',
+        jobCode: '201002040001',
+        count: '2',
+        category: '专业技术七级岗位及以下',
+        scope: '全国',
+        age: '1982年及以后出生',
+        politics: '不限',
+        education: '硕士研究生及以上',
+        degree: '硕士及以上',
+        major: '02经济学',
+        title: '中级经济师及以上职称',
+        certificate: '无',
+        experience: '5年及以上经济研究经历，作为项目负责人主持过2项及以上课题/规划/监测分析',
+        examType: '综合类',
+        interview: '结构化面试+答辩（入围比例3:1）',
+        scoreRatio: '笔试40% + 面试60%',
+        servicePeriod: '无',
+        remark: '需提供课题结项或立项证明',
+        phone: '李老师 028-61885678',
+        extra: {}
+      },
+      {
+        seq: '62',
+        unit: '成都市财源建设和债务管理中心',
+        jobName: '综合业务岗',
+        jobCode: '201002031001',
+        count: '2',
+        category: '八级管理岗位及以下',
+        scope: '全国',
+        age: '1987年及以后出生',
+        politics: '不限',
+        education: '硕士研究生及以上',
+        degree: '硕士及以上',
+        major: '0202应用经济学、0251金融、120201会计学',
+        title: '无',
+        certificate: '无',
+        experience: '无',
+        examType: '综合类',
+        interview: '结构化面试（入围比例3:1）',
+        scoreRatio: '笔试50% + 面试50%',
+        servicePeriod: '无',
+        remark: '仅招应用经济学及金融财会方向',
+        phone: '王老师 028-61882345',
+        extra: {}
+      },
+      {
+        seq: '25',
+        unit: '成都职业技术学院',
+        jobName: '辅导员',
+        jobCode: '201002013001',
+        count: '5',
+        category: '专业技术十二级岗位及以下',
+        scope: '全国',
+        age: '1990年及以后出生',
+        politics: '中共党员（含预备）',
+        education: '硕士研究生及以上',
+        degree: '硕士及以上',
+        major: '不限专业',
+        title: '无',
+        certificate: '无',
+        experience: '无',
+        examType: '综合类',
+        interview: '结构化面试（入围比例3:1）',
+        scoreRatio: '笔试50% + 面试50%',
+        servicePeriod: '最低服务期5年',
+        remark: '需入住学生公寓值班',
+        phone: '刘老师 028-85321122',
+        extra: {}
+      },
+      {
+        seq: '14',
+        unit: '中共成都市纪委教育培训中心',
+        jobName: '综合管理',
+        jobCode: '201002010001',
+        count: '1',
+        category: '八级管理岗位及以下',
+        scope: '全国',
+        age: '1987年及以后出生',
+        politics: '中共党员（含预备）',
+        education: '硕士研究生及以上',
+        degree: '硕士及以上',
+        major: '1204公共管理、0302政治学',
+        title: '无',
+        certificate: '无',
+        experience: '无',
+        examType: '综合类',
+        interview: '结构化面试（入围比例3:1）',
+        scoreRatio: '笔试50% + 面试50%',
+        servicePeriod: '无',
+        remark: '具备2年及以上牵头负责党建、宣教、文体活动策划、统筹、组织工作经历的不受专业限制；能适应长期值班',
+        phone: '陈老师 028-61889900',
+        extra: {}
+      }
+    ];
+
+    /* =========================================================================
+       2. 学科门类与常见一级学科映射字典（支持向上兼容）
+       ========================================================================= */
+    const DISCIPLINE_DICT = {
+      '01': ['哲学'],
+      '02': ['经济学'],
+      '03': ['法学'],
+      '04': ['教育学'],
+      '05': ['文学'],
+      '06': ['历史学'],
+      '07': ['理学'],
+      '08': ['工学'],
+      '09': ['农学'],
+      '10': ['医学'],
+      '11': ['军事学'],
+      '12': ['管理学'],
+      '13': ['艺术学'],
+      '14': ['交叉学科'],
+      // 常见一级学科
+      '0201': ['理论经济学'],
+      '0202': ['应用经济学'],
+      '0251': ['金融'],
+      '0252': ['应用统计'],
+      '0253': ['税务'],
+      '0254': ['国际商务'],
+      '0301': ['法学'],
+      '0302': ['政治学'],
+      '0303': ['社会学'],
+      '0305': ['马克思主义理论'],
+      '0401': ['教育学'],
+      '0402': ['心理学'],
+      '0451': ['教育'],
+      '0501': ['中国语言文学'],
+      '0502': ['外国语言文学'],
+      '0503': ['新闻传播学'],
+      '0701': ['数学', '数学类'],
+      '0702': ['物理学', '物理学类'],
+      '0703': ['化学', '化学类'],
+      '0714': ['统计学', '统计学类'],
+      '0809': ['电子科学与技术', '电子信息'],
+      '0810': ['信息与通信工程'],
+      '0812': ['计算机科学与技术', '计算机类'],
+      '0835': ['软件工程'],
+      '0854': ['电子信息'],
+      '1201': ['管理科学与工程'],
+      '1202': ['工商管理', '工商管理类'],
+      '1204': ['公共管理', '公共管理类'],
+      '1253': ['会计']
+    };
+
+    /* =========================================================================
+       3. 应用全局状态
+       ========================================================================= */
+    const APP_STATE = {
+      jobs: [...DEMO_JOBS],
+      fileName: '内置演示表：成都市事业编精选样例.xlsx',
+      greenList: [],
+      yellowList: [],
+      activeTab: 'all',
+      searchQuery: ''
+    };
+
+    /* =========================================================================
+       4. 工具函数：Toast、剪贴板、正则转义、中文数字转阿拉伯数字
+       ========================================================================= */
+    function showToast(msg) {
+      const container = document.getElementById('toast-container');
+      const el = document.createElement('div');
+      el.className = 'toast-item';
+      el.textContent = msg;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transition = 'opacity 0.25s ease';
+        setTimeout(() => el.remove(), 260);
+      }, 2400);
+    }
+
+    function copyTextToClipboard(text, successMsg = '已复制到剪贴板') {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-9999px';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if (ok) {
+          showToast(successMsg);
+        } else {
+          showToast('复制失败，请手动选中复制');
+        }
+      } catch (err) {
+        showToast('复制失败，请手动选中复制');
+      }
+    }
+
+    function escapeRegExp(str) {
+      return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function cnNumToInt(ch) {
+      const map = { '一': 1, '二': 2, '两': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+      if (map[ch] !== undefined) return map[ch];
+      const n = parseInt(ch, 10);
+      return isNaN(n) ? 0 : n;
+    }
+
+    /* =========================================================================
+       5. Excel 智能解析引擎（支持合并单元格 + 双层表头自动识别）
+       ========================================================================= */
+    function parseExcelFile(file) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[firstSheetName];
+
+          // 读取二维数组
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+          if (!rows || rows.length === 0) {
+            showToast('表格内容为空，请检查 Excel 文件');
+            return;
+          }
+
+          // 展开前 15 行的合并单元格，确保多级表头值不丢失
+          const merges = sheet['!merges'] || [];
+          merges.forEach(m => {
+            if (m.s.r <= 14) {
+              const val = (rows[m.s.r] && rows[m.s.r][m.s.c] !== undefined) ? rows[m.s.r][m.s.c] : '';
+              for (let r = m.s.r; r <= Math.min(m.e.r, 14); r++) {
+                if (!rows[r]) rows[r] = [];
+                for (let c = m.s.c; c <= m.e.c; c++) {
+                  if (rows[r][c] === '' || rows[r][c] === undefined) {
+                    rows[r][c] = val;
+                  }
+                }
+              }
+            }
+          });
+
+          // 扫描前 10 行，定位表头行
+          const headerKeywords = ['招聘单位', '用人单位', '岗位名称', '职位名称', '专业', '学历', '招聘名额', '招录人数', '岗位编码'];
+          let headerRowIdx = -1;
+          let maxScore = 0;
+
+          for (let r = 0; r < Math.min(rows.length, 10); r++) {
+            const rowStr = rows[r].map(cell => String(cell || '').replace(/\s+/g, '')).join('|');
+            let score = 0;
+            headerKeywords.forEach(kw => {
+              if (rowStr.includes(kw)) score++;
+            });
+            if (score > maxScore) {
+              maxScore = score;
+              headerRowIdx = r;
+            }
+          }
+
+          if (headerRowIdx === -1 || maxScore < 2) {
+            showToast('未能识别标准岗位表头，请确认表格包含「招聘单位/岗位名称/专业」等列');
+            return;
+          }
+
+          // 判断是否存在双层表头（检查 headerRowIdx + 1 是否包含细分子表头关键词）
+          const subHeaderKeywords = ['年龄', '政治面貌', '学历', '学位', '专业', '职称', '资格证书', '工作经历', '笔试', '面试'];
+          let dataStartIdx = headerRowIdx + 1;
+          let hasSubHeader = false;
+
+          if (headerRowIdx + 1 < rows.length) {
+            const nextRowStr = rows[headerRowIdx + 1].map(c => String(c || '').replace(/\s+/g, '')).join('|');
+            let subScore = 0;
+            subHeaderKeywords.forEach(kw => {
+              if (nextRowStr.includes(kw)) subScore++;
+            });
+            if (subScore >= 2) {
+              hasSubHeader = true;
+              dataStartIdx = headerRowIdx + 2;
+            }
+          }
+
+          // 合成最终列名数组（优先取下层非空字段，否则取上层字段）
+          const colCount = Math.max(
+            rows[headerRowIdx].length,
+            hasSubHeader ? rows[headerRowIdx + 1].length : 0
+          );
+          const headers = [];
+          for (let c = 0; c < colCount; c++) {
+            const upper = String(rows[headerRowIdx][c] || '').replace(/[\r\n\s]+/g, '');
+            const lower = hasSubHeader ? String(rows[headerRowIdx + 1][c] || '').replace(/[\r\n\s]+/g, '') : '';
+            if (lower && lower !== upper) {
+              headers.push(lower);
+            } else {
+              headers.push(upper || `列${c + 1}`);
+            }
+          }
+
+          // 模糊映射列索引
+          const findCol = (patterns) => {
+            for (const p of patterns) {
+              const idx = headers.findIndex(h => p.test(h));
+              if (idx !== -1) return idx;
+            }
+            return -1;
+          };
+
+          const colMap = {
+            seq: findCol([/^序号$/i, /序号/]),
+            unit: findCol([/招聘单位/, /用人单位/, /单位名称/]),
+            jobName: findCol([/岗位名称/, /职位名称/, /岗位$/]),
+            jobCode: findCol([/岗位编码/, /岗位代码/, /职位代码/, /编码/]),
+            count: findCol([/招聘名额/, /招录人数/, /招聘人数/, /名额/, /人数/]),
+            category: findCol([/岗位类别/, /岗位等级/, /类别/]),
+            scope: findCol([/招聘范围/, /招聘对象/, /招考范围/]),
+            age: findCol([/年龄/]),
+            politics: findCol([/政治面貌/]),
+            education: findCol([/^学历$/, /学历要求/, /学历/]),
+            degree: findCol([/^学位$/, /学位要求/, /学位/]),
+            major: findCol([/专业（学科）/, /专业要求/, /所需专业/, /专业/]),
+            title: findCol([/职称/]),
+            certificate: findCol([/资格证书/, /执业资格/, /证书/]),
+            experience: findCol([/工作经历/, /基层经历/, /经历要求/]),
+            examType: findCol([/笔试科目/, /考试类别/, /笔试类别/, /考试科目/]),
+            interview: findCol([/面试方式/, /面试形式/, /面试比例/, /面试/]),
+            scoreRatio: findCol([/成绩占比/, /总成绩/, /成绩计算/, /比例/]),
+            servicePeriod: findCol([/最低服务期/, /服务年限/, /服务期/]),
+            remark: findCol([/备注/, /其他条件/, /其他要求/]),
+            phone: findCol([/咨询电话/, /联系电话/, /电话/])
+          };
+
+          const mappedIndices = new Set(Object.values(colMap).filter(i => i !== -1));
+          const parsedJobs = [];
+
+          for (let r = dataStartIdx; r < rows.length; r++) {
+            const row = rows[r];
+            if (!row || row.every(cell => String(cell || '').trim() === '')) continue;
+
+            const getVal = (idx) => idx !== -1 ? String(row[idx] ?? '').trim() : '';
+            const unit = getVal(colMap.unit);
+            const jobName = getVal(colMap.jobName);
+            // 跳过合计行或无效表尾说明行
+            if (!unit && !jobName) continue;
+            if (/^(合计|总计|注[:：]|说明[:：])/.test(unit) || /^(合计|总计)/.test(jobName)) continue;
+
+            const extra = {};
+            for (let c = 0; c < headers.length; c++) {
+              if (!mappedIndices.has(c)) {
+                const v = String(row[c] ?? '').trim();
+                if (v) extra[headers[c]] = v;
+              }
+            }
+
+            parsedJobs.push({
+              seq: getVal(colMap.seq) || String(parsedJobs.length + 1),
+              unit: unit || '未标注单位',
+              jobName: jobName || '未标注岗位',
+              jobCode: getVal(colMap.jobCode) || '—',
+              count: getVal(colMap.count) || '1',
+              category: getVal(colMap.category) || '',
+              scope: getVal(colMap.scope) || '',
+              age: getVal(colMap.age) || '',
+              politics: getVal(colMap.politics) || '',
+              education: getVal(colMap.education) || '',
+              degree: getVal(colMap.degree) || '',
+              major: getVal(colMap.major) || '',
+              title: getVal(colMap.title) || '',
+              certificate: getVal(colMap.certificate) || '',
+              experience: getVal(colMap.experience) || '',
+              examType: getVal(colMap.examType) || '',
+              interview: getVal(colMap.interview) || '',
+              scoreRatio: getVal(colMap.scoreRatio) || '',
+              servicePeriod: getVal(colMap.servicePeriod) || '',
+              remark: getVal(colMap.remark) || '',
+              phone: getVal(colMap.phone) || '',
+              extra
+            });
+          }
+
+          if (parsedJobs.length === 0) {
+            showToast('未解析到有效岗位行，请检查表格格式');
+            return;
+          }
+
+          APP_STATE.jobs = parsedJobs;
+          APP_STATE.fileName = file.name;
+          updateFileStatusUI();
+          runScreening();
+          showToast(`成功加载「${file.name}」，共解析 ${parsedJobs.length} 个岗位`);
+        } catch (err) {
+          console.error(err);
+          showToast('Excel 解析失败，请确认文件未损坏且为标准 .xlsx/.xls 格式');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function updateFileStatusUI() {
+      document.getElementById('current-file-name').textContent = APP_STATE.fileName;
+      document.getElementById('total-jobs-badge').textContent = `共 ${APP_STATE.jobs.length} 岗`;
+      document.getElementById('parse-status-text').textContent = `● 已就绪，共 ${APP_STATE.jobs.length} 条岗位数据`;
+    }
+
+    /* =========================================================================
+       6. 核心智能筛选算法（精准向上兼容 + 不误杀）
+       ========================================================================= */
+
+    /**
+     * 拆分专业栏中的「本科：...」与「研究生：...」段落
+     */
+    function splitMajorByEdu(majorText) {
+      const text = String(majorText || '').trim();
+      const bMatch = text.match(/本科(?:及以上)?\s*[:：]\s*([^；;\n]+(?:[；;\n](?!研究生|硕士|博士)[^；;\n]+)*)/);
+      const gMatch = text.match(/(?:研究生|硕士(?:研究生)?|博士(?:研究生)?)\s*[:：]\s*([^；;\n]+(?:[；;\n](?!本科)[^；;\n]+)*)/);
+      if (bMatch || gMatch) {
+        return {
+          hasSplit: true,
+          bachelorPart: bMatch ? bMatch[1].trim() : '',
+          gradPart: gMatch ? gMatch[1].trim() : ''
+        };
+      }
+      return {
+        hasSplit: false,
+        bachelorPart: text,
+        gradPart: text
+      };
+    }
+
+    /**
+     * 判断某专业名称 + 代码是否匹配目标专业文本（严格防串码 + 向上兼容）
+     */
+    function checkMajorMatch(targetText, majorName, majorCode) {
+      const text = String(targetText || '').trim();
+      if (!text) return { matched: false, reason: '' };
+
+      // 1. 不限专业
+      if (/不限专业|^不限$|专业不限/.test(text)) {
+        return { matched: true, reason: '不限专业' };
+      }
+
+      const cleanName = String(majorName || '').trim();
+      const cleanCode = String(majorCode || '').replace(/\D/g, '');
+
+      // 2. 精确专业名称匹配
+      if (cleanName && text.includes(cleanName)) {
+        return { matched: true, reason: `专业名称精准匹配（${cleanName}）` };
+      }
+
+      // 3. 专业代码向上兼容匹配（严格数字边界，绝不串码）
+      const checkCodeInText = (codeStr) => {
+        if (!codeStr) return false;
+        const exactRe = new RegExp(`(?<!\\d)${escapeRegExp(codeStr)}(?!\\d)`);
+        if (exactRe.test(text)) return true;
+        // 兼容 Excel 省略前导 0 的 4~6 位代码（2 位代码不省略前导 0 以免误匹配普通数字）
+        if (codeStr.length >= 4 && codeStr.startsWith('0')) {
+          const stripped = codeStr.replace(/^0+/, '');
+          const stripRe = new RegExp(`(?<!\\d)${escapeRegExp(stripped)}(?!\\d)`);
+          if (stripRe.test(text)) return true;
+        }
+        return false;
+      };
+
+      if (cleanCode.length >= 6 && checkCodeInText(cleanCode)) {
+        return { matched: true, reason: `专业代码精准匹配（${cleanCode}）` };
+      }
+
+      if (cleanCode.length >= 4) {
+        const code4 = cleanCode.slice(0, 4);
+        if (checkCodeInText(code4)) {
+          return { matched: true, reason: `一级学科代码匹配（${code4}）` };
+        }
+        const names4 = DISCIPLINE_DICT[code4] || [];
+        for (const n4 of names4) {
+          if (text.includes(n4)) {
+            return { matched: true, reason: `一级学科匹配（${n4}）` };
+          }
+        }
+      }
+
+      if (cleanCode.length >= 2) {
+        const code2 = cleanCode.slice(0, 2);
+        if (checkCodeInText(code2)) {
+          return { matched: true, reason: `学科门类代码匹配（${code2}）` };
+        }
+        const names2 = DISCIPLINE_DICT[code2] || [];
+        for (const n2 of names2) {
+          // 防止“应用经济学”误匹配门类“经济学”：门类名称前不能紧跟其他中文修饰字
+          const catRe = new RegExp(`(?<![\\u4e00-\\u9fa5])${escapeRegExp(n2)}(?:门类|类)?(?![\\u4e00-\\u9fa5]|\\s*\\()|(?<![\\u4e00-\\u9fa5])${escapeRegExp(n2)}(?:[、,，；;\\s]|$)`);
+          if (catRe.test(text)) {
+            return { matched: true, reason: `学科门类匹配（${n2}）` };
+          }
+        }
+      }
+
+      return { matched: false, reason: '' };
+    }
+
+    /**
+     * 解析年龄 / 出生年份要求
+     */
+    function checkAgeEligible(ageText, birthYear, education, isVeteran) {
+      if (!ageText || !birthYear || isNaN(birthYear)) return true;
+      const text = String(ageText);
+      const currentYear = new Date().getFullYear();
+      const userAge = currentYear - birthYear;
+
+      // 优先解析“19XX年及以后出生”
+      const yearMatches = [...text.matchAll(/(19\d{2}|20\d{2})\s*年[^，,；;。]*以后出生/g)];
+      if (yearMatches.length > 0) {
+        let requiredYear = parseInt(yearMatches[0][1], 10);
+        // 若硕士/博士有放宽条款
+        if (education === 'master' || education === 'phd') {
+          const gradRelax = text.match(/(?:研究生|硕士|博士)[^，,；;。]*?(19\d{2}|20\d{2})\s*年/);
+          if (gradRelax) {
+            requiredYear = Math.min(requiredYear, parseInt(gradRelax[1], 10));
+          }
+        }
+        // 退役军人常规放宽 2 岁
+        if (isVeteran) requiredYear -= 2;
+        return birthYear >= requiredYear;
+      }
+
+      // 其次解析“XX周岁以下/及以下”
+      const ageMatches = [...text.matchAll(/(\d{2})\s*周?岁(?:以|及以)下/g)];
+      if (ageMatches.length > 0) {
+        let maxAge = parseInt(ageMatches[0][1], 10);
+        if (education === 'master' || education === 'phd') {
+          const gradAge = text.match(/(?:研究生|硕士|博士)[^，,；;。]*?(\d{2})\s*周?岁/);
+          if (gradAge) {
+            maxAge = Math.max(maxAge, parseInt(gradAge[1], 10));
+          }
+        }
+        if (isVeteran) maxAge += 2;
+        return userAge <= maxAge;
+      }
+
+      return true;
+    }
+
+    /**
+     * 获取表单当前筛选条件
+     */
+    function getFormCriteria() {
+      const birthYear = parseInt(document.getElementById('birth-year').value, 10) || 1998;
+      const politics = document.querySelector('input[name="politics"]:checked')?.value || 'non_party';
+      const specials = [...document.querySelectorAll('input[name="special"]:checked')].map(el => el.value);
+      const education = document.querySelector('input[name="education"]:checked')?.value || 'master';
+      const majorName = document.getElementById('major-name').value.trim();
+      const majorCode = document.getElementById('major-code').value.trim();
+      const enableBachelorFallback = (education !== 'bachelor') && document.getElementById('enable-bachelor-fallback').checked;
+      const bachelorMajorName = document.getElementById('bachelor-major-name').value.trim();
+      const bachelorMajorCode = document.getElementById('bachelor-major-code').value.trim();
+
+      const workYearsVal = document.getElementById('work-years').value;
+      const isFresh = workYearsVal === 'fresh';
+      const workYearsNum = isFresh ? 0 : parseInt(workYearsVal, 10) || 0;
+
+      const checkedCerts = [...document.querySelectorAll('input[name="certs"]:checked')].map(el => el.value);
+      const customCertsRaw = document.getElementById('custom-certs').value.trim();
+      const customCerts = customCertsRaw ? customCertsRaw.split(/[\s,，、;；]+/).filter(Boolean) : [];
+      const allCerts = [...checkedCerts, ...customCerts];
+
+      const examType = document.querySelector('input[name="examType"]:checked')?.value || 'all';
+      const excludeShift = document.getElementById('exclude-shift').checked;
+      const excludeService = document.getElementById('exclude-service').checked;
+
+      return {
+        birthYear,
+        isParty: politics === 'party',
+        isVeteran: specials.includes('veteran'),
+        isDisabled: specials.includes('disabled'),
+        education,
+        majorName,
+        majorCode,
+        enableBachelorFallback,
+        bachelorMajorName,
+        bachelorMajorCode,
+        isFresh,
+        workYearsNum,
+        allCerts,
+        examType,
+        excludeShift,
+        excludeService
+      };
+    }
+
+    /**
+     * 评估单个岗位：返回 null（排除）或 { job, level: 'green'|'yellow', matchTag, yellowReasons }
+     */
+    function evaluateJob(job, c) {
+      const combinedText = `${job.scope} ${job.politics} ${job.education} ${job.major} ${job.title} ${job.certificate} ${job.experience} ${job.remark}`;
+      const expAndRemark = `${job.experience} ${job.remark}`;
+
+      // 1. 特殊身份限制
+      if (/限残疾人|面向残疾人|持有残疾人证/.test(combinedText) && !c.isDisabled) return null;
+      if (/限退役军人|面向退役军人/.test(combinedText) && !c.isVeteran) return null;
+
+      // 2. 政治面貌硬性限制
+      const politicsText = `${job.politics} ${job.remark}`;
+      if (/中共党员/.test(politicsText) && !/中共党员优先/.test(politicsText) && !c.isParty) {
+        return null;
+      }
+
+      // 3. 学历硬性门槛
+      const eduText = job.education || '';
+      const allowsBachelor = /本科/.test(eduText) || !eduText;
+      const requiresPhdOnly = /博士/.test(eduText) && !/硕士|本科/.test(eduText);
+      const requiresMasterMin = /(硕士|研究生)/.test(eduText) && !/本科/.test(eduText);
+
+      if (requiresPhdOnly && c.education !== 'phd') return null;
+      if (requiresMasterMin && c.education === 'bachelor') return null;
+
+      // 4. 年龄门槛
+      if (!checkAgeEligible(job.age, c.birthYear, c.education, c.isVeteran)) {
+        return null;
+      }
+
+      // 5. 应届生/公费师范生硬性门槛
+      const freshStrictRe = /(?:限|仅招|面向)?(?:202[67]年(?:应届)?毕业|应届高校毕业生|应届毕业生|部属公费师范生|公费师范生)/;
+      if (freshStrictRe.test(combinedText) && !c.isFresh) {
+        return null;
+      }
+
+      // 6. 报考偏好过滤（笔试类别 / 值班 / 最低服务期）
+      if (c.examType !== 'all') {
+        const examStr = `${job.examType} ${job.category} ${job.jobName}`;
+        if (!examStr.includes(c.examType.replace('类', ''))) return null;
+      }
+      if (c.excludeShift && /值班|夜班/.test(expAndRemark)) return null;
+      if (c.excludeService) {
+        const svc = `${job.servicePeriod} ${job.remark}`;
+        if (/服务期\d|最低服务\d|服务\d年|服务满\d/.test(svc) && !/无最低服务期/.test(svc)) {
+          return null;
+        }
+      }
+
+      // 7. 专业匹配（含硕士/本科段落拆分 + 本科兜底 + 备注豁免）
+      const split = splitMajorByEdu(job.major);
+      let matched = false;
+      let matchTag = '';
+      let usedBachelorFallback = false;
+      let exemptedByRemark = false;
+
+      if (c.education === 'bachelor') {
+        const res = checkMajorMatch(split.bachelorPart, c.majorName, c.majorCode);
+        if (res.matched) {
+          matched = true;
+          matchTag = `本科${res.reason}`;
+        }
+      } else {
+        // 先用最高学历匹配
+        const gradTarget = split.hasSplit ? split.gradPart : job.major;
+        const gradRes = checkMajorMatch(gradTarget, c.majorName, c.majorCode);
+        if (gradRes.matched) {
+          matched = true;
+          matchTag = `${c.education === 'phd' ? '博士' : '硕士'}${gradRes.reason}`;
+        } else if (c.enableBachelorFallback && allowsBachelor && (c.bachelorMajorName || c.bachelorMajorCode)) {
+          // 尝试本科专业兜底
+          const bachTarget = split.hasSplit ? split.bachelorPart : job.major;
+          const bachRes = checkMajorMatch(bachTarget, c.bachelorMajorName, c.bachelorMajorCode);
+          if (bachRes.matched) {
+            matched = true;
+            usedBachelorFallback = true;
+            matchTag = `本科专业兜底（${bachRes.reason}）`;
+          }
+        }
+      }
+
+      // 若专业不符，检查备注是否有「不受专业限制」条件豁免
+      if (!matched && /不受专业限制/.test(expAndRemark)) {
+        matched = true;
+        exemptedByRemark = true;
+        matchTag = '备注特定经历豁免专业';
+      }
+
+      if (!matched) return null;
+
+      // 8. 工作年限硬性判断
+      const yellowReasons = [];
+      const expText = String(job.experience || '');
+
+      // 判断是否仅限本科学历要求基层工作经历
+      const isBachelorOnlyExp = /本科学历(?:报考)?需具有(?:两|二|2)年以上基层工作经历/.test(expText);
+      if (isBachelorOnlyExp) {
+        if (c.education === 'bachelor' || usedBachelorFallback) {
+          if (c.workYearsNum < 2) return null;
+          yellowReasons.push('以本科学历/专业报考需满足「两年以上基层工作经历」，请确认社保及合同认定口径');
+        }
+      } else {
+        // 提取通用年限要求（如 2年以上 / 3年及以上 / 5年以上）
+        const yearRe = /([一二两三四五六七八九十\d]+)\s*年(?:及)?以上/;
+        const ym = expAndRemark.match(yearRe);
+        if (ym) {
+          const reqYears = cnNumToInt(ym[1]);
+          if (reqYears > 0 && c.workYearsNum < reqYears) {
+            return null;
+          }
+        }
+      }
+
+      // 9. 职称与证书硬性判断（特别放行「须于202X年前取得教资」类后补证条款）
+      const certAndTitle = `${job.title} ${job.certificate} ${job.remark}`;
+      const deferredCertMatch = certAndTitle.match(/须于\d{4}年[^，,；;。]*前取得[^，,；;。]*/);
+
+      const userHasCert = (keywords) => {
+        return c.allCerts.some(uc => keywords.some(kw => uc.includes(kw) || kw.includes(uc)));
+      };
+
+      const hardCertChecks = [
+        { re: /中级经济师|经济师(?:及以上)?职称/, keys: ['经济师', '中级经济师'], label: '经济师职称' },
+        { re: /会计师(?:及以上)?职称|中级会计师|初级会计师/, keys: ['会计师', '初级/中级会计师', '中级会计师', '初级会计师'], label: '会计师职称' },
+        { re: /一级教师|二级教师|高级教师/, keys: ['一级教师', '二级教师', '高级教师'], label: '教师职称' },
+        { re: /医师资格|执业医师/, keys: ['医师资格证', '执业医师'], label: '医师资格证' },
+        { re: /法律职业资格/, keys: ['法律职业资格证', '法律职业资格'], label: '法律职业资格证' },
+        { re: /英语专业八级|英语专八|TEM-?8/, keys: ['英语专八', '专八'], label: '英语专八' },
+        { re: /英语六级|CET-?6/, keys: ['英语六级', '英语专八'], label: '英语六级' }
+      ];
+
+      for (const chk of hardCertChecks) {
+        if (chk.re.test(certAndTitle) && !userHasCert(chk.keys)) {
+          return null;
+        }
+      }
+
+      // 教师资格证特殊处理：如果是「须于202X年前取得」，不淘汰而是标黄提示
+      if (/教师资格证/.test(certAndTitle)) {
+        if (deferredCertMatch) {
+          if (!userHasCert(['教师资格证', '中学教师资格证'])) {
+            yellowReasons.push(`允许先考后补证：${deferredCertMatch[0]}`);
+          }
+        } else if (!userHasCert(['教师资格证', '中学教师资格证'])) {
+          return null;
+        }
+      }
+
+      // 10. 汇总黄灯待核实项
+      if (usedBachelorFallback) {
+        yellowReasons.unshift('通过「本科专业兜底」命中，报名前建议电话确认硕士能否以本科学历及专业报考');
+      }
+
+      if (exemptedByRemark) {
+        yellowReasons.push(`原专业不符，依赖备注豁免条款：${job.remark}`);
+      }
+
+      // 检查非标定性工作经历要求
+      if (expText && !/^无$|^不限$/.test(expText) && !isBachelorOnlyExp) {
+        if (/许可证|项目负责人|主持|牵头|新闻|媒体|研究|教学|党建|相关工作经历|工作经历/.test(expText)) {
+          yellowReasons.push(`特殊工作经历待核实：${expText}`);
+        }
+      }
+
+      const level = yellowReasons.length > 0 ? 'yellow' : 'green';
+      return {
+        job,
+        level,
+        matchTag,
+        yellowReasons
+      };
+    }
+
+    /**
+     * 执行全局筛选并更新界面
+     */
+    function runScreening() {
+      const criteria = getFormCriteria();
+      const greenList = [];
+      const yellowList = [];
+
+      APP_STATE.jobs.forEach(job => {
+        const res = evaluateJob(job, criteria);
+        if (!res) return;
+        if (res.level === 'green') greenList.push(res);
+        else yellowList.push(res);
+      });
+
+      APP_STATE.greenList = greenList;
+      APP_STATE.yellowList = yellowList;
+
+      // 更新统计数字
+      document.getElementById('stat-total').textContent = APP_STATE.jobs.length;
+      document.getElementById('stat-green').textContent = greenList.length;
+      document.getElementById('stat-yellow').textContent = yellowList.length;
+
+      document.getElementById('tab-count-all').textContent = greenList.length + yellowList.length;
+      document.getElementById('tab-count-green').textContent = greenList.length;
+      document.getElementById('tab-count-yellow').textContent = yellowList.length;
+
+      renderResults();
+    }
+
+    /* =========================================================================
+       7. 结果列表渲染（防穿模卡片 + 展开详情 + 点击复制电话）
+       ========================================================================= */
+    function renderResults() {
+      const container = document.getElementById('results-container');
+      let list = [];
+      if (APP_STATE.activeTab === 'green') list = [...APP_STATE.greenList];
+      else if (APP_STATE.activeTab === 'yellow') list = [...APP_STATE.yellowList];
+      else list = [...APP_STATE.greenList, ...APP_STATE.yellowList];
+
+      const q = APP_STATE.searchQuery.trim().toLowerCase();
+      if (q) {
+        list = list.filter(item => {
+          const hay = `${item.job.unit} ${item.job.jobName} ${item.job.jobCode} ${item.job.major}`.toLowerCase();
+          return hay.includes(q);
+        });
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="macaron-card p-10 text-center">
+            <div class="text-4xl mb-3">🫧</div>
+            <p class="text-base font-bold" style="color: #3a3247;">当前条件下暂无匹配岗位</p>
+            <p class="text-xs sm:text-sm mt-1.5 safe-text" style="color: #7d758c;">
+              可以尝试开启「本科专业兜底」、核对专业代码，或清空搜索关键字后重新筛选。
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = list.map((item, idx) => {
+        const j = item.job;
+        const isGreen = item.level === 'green';
+        const statusBadge = isGreen
+          ? `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shrink-0" style="background: #ddf0d8; color: #2b5926;">🟢 确定可报</span>`
+          : `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shrink-0" style="background: #fcf4cd; color: #7a5f14;">🟡 条件待核实</span>`;
+
+        const matchBadgeBg = item.matchTag.includes('本科专业兜底') ? '#dbeeff' : '#e0d4f7';
+        const matchBadgeColor = item.matchTag.includes('本科专业兜底') ? '#234e70' : '#4f377a';
+
+        const yellowAlertHtml = !isGreen
+          ? `
+            <div class="mt-3 p-3 rounded-xl space-y-1.5" style="background: #fcf4cd; color: #6e540f;">
+              <p class="text-xs font-bold">⚠️ 待核实要点：</p>
+              <ul class="list-disc pl-4 space-y-1 text-xs leading-relaxed safe-text">
+                ${item.yellowReasons.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+              </ul>
+            </div>
+          `
+          : '';
+
+        const extraRowsHtml = Object.entries(j.extra || {})
+          .map(([k, v]) => `<div><span class="font-semibold" style="color: #3a3247;">${escapeHtml(k)}：</span><span>${escapeHtml(v)}</span></div>`)
+          .join('');
+
+        return `
+          <article class="macaron-card p-4 sm:p-5 transition hover:shadow-md">
+            <!-- 卡片头部 -->
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                  ${statusBadge}
+                  <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold safe-text" style="background: ${matchBadgeBg}; color: ${matchBadgeColor};">
+                    ${escapeHtml(item.matchTag)}
+                  </span>
+                  <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold" style="background: #f5f3fa; color: #534b62;">
+                    招 ${escapeHtml(j.count)} 人
+                  </span>
+                </div>
+                <h3 class="text-base sm:text-lg font-bold safe-text" style="color: #3a3247;">
+                  ${escapeHtml(j.unit)} · ${escapeHtml(j.jobName)}
+                </h3>
+                <p class="text-xs mt-0.5 safe-text" style="color: #7d758c;">
+                  岗位编码：<span class="font-mono font-semibold" style="color: #534b62;">${escapeHtml(j.jobCode)}</span>
+                  ${j.category ? ` · ${escapeHtml(j.category)}` : ''}
+                </p>
+              </div>
+            </div>
+
+            <!-- 核心考试信息摘要 -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-3.5 text-xs">
+              <div class="rounded-xl p-2.5 min-w-0" style="background: #faf9fd;">
+                <span class="block text-[11px]" style="color: #7d758c;">笔试类别</span>
+                <span class="font-semibold mt-0.5 block safe-text" style="color: #3a3247;">${escapeHtml(j.examType || '详见公告')}</span>
+              </div>
+              <div class="rounded-xl p-2.5 min-w-0" style="background: #faf9fd;">
+                <span class="block text-[11px]" style="color: #7d758c;">面试形式与比例</span>
+                <span class="font-semibold mt-0.5 block safe-text" style="color: #3a3247;">${escapeHtml(j.interview || '详见公告')}</span>
+              </div>
+              <div class="rounded-xl p-2.5 min-w-0" style="background: #faf9fd;">
+                <span class="block text-[11px]" style="color: #7d758c;">总成绩占比</span>
+                <span class="font-semibold mt-0.5 block safe-text" style="color: #3a3247;">${escapeHtml(j.scoreRatio || '详见公告')}</span>
+              </div>
+            </div>
+
+            ${yellowAlertHtml}
+
+            <!-- 底部操作行：咨询电话 + 展开详情 -->
+            <div class="flex flex-wrap items-center justify-between gap-2 mt-3.5 pt-3 border-t border-purple-100/80">
+              <div class="flex items-center gap-2 min-w-0">
+                ${j.phone
+                  ? `<button type="button" onclick="copyTextToClipboard('${escapeHtml(j.phone)}', '已复制咨询电话：${escapeHtml(j.phone)}')"
+                      class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition hover:opacity-85 cursor-pointer safe-text"
+                      style="background: #edf6ff; color: #234e70;">
+                      📞 ${escapeHtml(j.phone)} <span class="opacity-70">(点此复制)</span>
+                    </button>`
+                  : `<span class="text-xs" style="color: #7d758c;">暂无咨询电话</span>`
+                }
+              </div>
+
+              <button type="button" onclick="toggleDetails('detail-${idx}', this)"
+                class="text-xs font-semibold px-3 py-1.5 rounded-xl transition hover:opacity-85 cursor-pointer shrink-0"
+                style="background: #f5f3fa; color: #4f377a;">
+                展开完整信息 ▾
+              </button>
+            </div>
+
+            <!-- 折叠详情面板 -->
+            <div id="detail-${idx}" class="details-panel hidden mt-3 p-3.5 rounded-2xl text-xs space-y-2 leading-relaxed safe-text" style="background: #faf9fd; border: 1px solid rgba(125, 117, 140, 0.12); color: #534b62;">
+              <div><span class="font-semibold" style="color: #3a3247;">学历与学位：</span>${escapeHtml(j.education || '不限')} / ${escapeHtml(j.degree || '不限')}</div>
+              <div><span class="font-semibold" style="color: #3a3247;">专业要求原文：</span>${escapeHtml(j.major || '不限')}</div>
+              <div><span class="font-semibold" style="color: #3a3247;">年龄与政治面貌：</span>${escapeHtml(j.age || '不限')} ｜ ${escapeHtml(j.politics || '不限')}</div>
+              <div><span class="font-semibold" style="color: #3a3247;">职称与证书：</span>${escapeHtml(j.title || '无')} ｜ ${escapeHtml(j.certificate || '无')}</div>
+              <div><span class="font-semibold" style="color: #3a3247;">工作经历要求：</span>${escapeHtml(j.experience || '无')}</div>
+              <div><span class="font-semibold" style="color: #3a3247;">最低服务期：</span>${escapeHtml(j.servicePeriod || '无')}</div>
+              <div><span class="font-semibold" style="color: #3a3247;">备注原文：</span>${escapeHtml(j.remark || '无')}</div>
+              ${extraRowsHtml}
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    window.toggleDetails = function (id, btn) {
+      const panel = document.getElementById(id);
+      if (!panel) return;
+      const isHidden = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden');
+      btn.textContent = isHidden ? '收起完整信息 ▴' : '展开完整信息 ▾';
+    };
+
+    /* =========================================================================
+       8. 一键复制微信汇报文本 & 一键导出精简 Excel
+       ========================================================================= */
+    function buildWechatReport() {
+      const totalMatched = APP_STATE.greenList.length + APP_STATE.yellowList.length;
+      if (totalMatched === 0) {
+        showToast('当前没有可复制的筛选结果');
+        return;
+      }
+
+      const c = getFormCriteria();
+      const lines = [
+        `📋 岗位智能筛选汇报（底表共 ${APP_STATE.jobs.length} 岗）`,
+        `筛选画像：${c.birthYear}年生｜${c.isParty ? '中共党员' : '非党员'}｜${c.education === 'phd' ? '博士' : c.education === 'master' ? '硕士' : '本科'}（${c.majorName || '未填'} ${c.majorCode || ''}）｜${c.isFresh ? '应届生' : c.workYearsNum + '年经验'}`,
+        `筛选结果：🟢 确定可报 ${APP_STATE.greenList.length} 个 ｜ 🟡 条件待核实 ${APP_STATE.yellowList.length} 个`,
+        ''
+      ];
+
+      if (APP_STATE.greenList.length > 0) {
+        lines.push('【🟢 确定可报岗位】');
+        APP_STATE.greenList.forEach((item, i) => {
+          const j = item.job;
+          lines.push(`${i + 1}. ${j.unit}｜${j.jobName}（编码：${j.jobCode}，招${j.count}人）`);
+          lines.push(`   匹配方式：${item.matchTag}｜笔试：${j.examType || '见公告'}`);
+          if (j.phone) lines.push(`   咨询电话：${j.phone}`);
+        });
+        lines.push('');
+      }
+
+      if (APP_STATE.yellowList.length > 0) {
+        lines.push('【🟡 条件待核实岗位】');
+        APP_STATE.yellowList.forEach((item, i) => {
+          const j = item.job;
+          lines.push(`${i + 1}. ${j.unit}｜${j.jobName}（编码：${j.jobCode}，招${j.count}人）`);
+          lines.push(`   匹配方式：${item.matchTag}`);
+          lines.push(`   待核实：${item.yellowReasons.join('；')}`);
+          if (j.phone) lines.push(`   咨询电话：${j.phone}`);
+        });
+      }
+
+      copyTextToClipboard(lines.join('\n'), '已复制微信汇报文本，可直接粘贴发送！');
+    }
+
+    function exportFilteredExcel() {
+      const allMatched = [...APP_STATE.greenList, ...APP_STATE.yellowList];
+      if (allMatched.length === 0) {
+        showToast('当前没有可导出的匹配岗位');
+        return;
+      }
+
+      try {
+        const exportRows = allMatched.map(item => ({
+          '筛选等级': item.level === 'green' ? '🟢 确定可报' : '🟡 条件待核实',
+          '匹配依据': item.matchTag,
+          '待核实要点': item.yellowReasons.join('；') || '无',
+          '招聘单位': item.job.unit,
+          '岗位名称': item.job.jobName,
+          '岗位编码': item.job.jobCode,
+          '招录人数': item.job.count,
+          '学历要求': item.job.education,
+          '专业要求': item.job.major,
+          '政治面貌': item.job.politics,
+          '工作经历要求': item.job.experience,
+          '笔试类别': item.job.examType,
+          '面试形式': item.job.interview,
+          '总成绩占比': item.job.scoreRatio,
+          '备注': item.job.remark,
+          '咨询电话': item.job.phone
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(exportRows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '筛选结果');
+        XLSX.writeFile(wb, `岗位筛选结果_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        showToast(`已导出 ${exportRows.length} 个匹配岗位至 Excel`);
+      } catch (err) {
+        console.error(err);
+        showToast('导出失败，请稍后重试');
+      }
+    }
+
+    /* =========================================================================
+       9. 表单交互绑定与初始化
+       ========================================================================= */
+    function syncPillStyles() {
+      // 政治面貌
+      document.querySelectorAll('#politics-group .pill-option').forEach(lbl => {
+        const checked = lbl.querySelector('input').checked;
+        lbl.classList.toggle('active-lavender', checked);
+      });
+      // 特殊身份
+      document.querySelectorAll('#special-group .pill-option').forEach(lbl => {
+        const checked = lbl.querySelector('input').checked;
+        lbl.classList.toggle('active-lavender', checked);
+      });
+      // 学历
+      document.querySelectorAll('#education-group .pill-option').forEach(lbl => {
+        const checked = lbl.querySelector('input').checked;
+        lbl.classList.toggle('active-blue', checked);
+      });
+      // 证书
+      document.querySelectorAll('#cert-group .pill-option').forEach(lbl => {
+        const checked = lbl.querySelector('input').checked;
+        lbl.classList.toggle('active-yellow', checked);
+      });
+      // 笔试类别
+      document.querySelectorAll('#exam-type-group .pill-option').forEach(lbl => {
+        const checked = lbl.querySelector('input').checked;
+        lbl.classList.toggle('active-pink', checked);
+      });
+      // 排除项
+      document.querySelectorAll('#exclude-group .pill-option').forEach(lbl => {
+        const checked = lbl.querySelector('input').checked;
+        lbl.classList.toggle('active-pink', checked);
+      });
+
+      // 控制本科兜底区显隐
+      const edu = document.querySelector('input[name="education"]:checked')?.value;
+      const wrapper = document.getElementById('bachelor-fallback-wrapper');
+      const fields = document.getElementById('bachelor-fields');
+      const enabled = document.getElementById('enable-bachelor-fallback').checked;
+
+      if (edu === 'bachelor') {
+        wrapper.classList.add('hidden');
+      } else {
+        wrapper.classList.remove('hidden');
+        fields.classList.toggle('hidden', !enabled);
+      }
+    }
+
+    function updateAgePreview() {
+      const y = parseInt(document.getElementById('birth-year').value, 10);
+      const badge = document.getElementById('age-preview');
+      if (!isNaN(y) && y >= 1950 && y <= 2020) {
+        const age = new Date().getFullYear() - y;
+        badge.textContent = `约 ${age} 岁`;
+      } else {
+        badge.textContent = '请输入有效年份';
+      }
+    }
+
+    function fillDemoCriteria() {
+      document.getElementById('birth-year').value = '1998';
+      document.querySelector('input[name="politics"][value="non_party"]').checked = true;
+      document.querySelectorAll('input[name="special"]').forEach(el => el.checked = false);
+      document.querySelector('input[name="education"][value="master"]').checked = true;
+      document.getElementById('major-name').value = '政治经济学';
+      document.getElementById('major-code').value = '020101';
+      document.getElementById('enable-bachelor-fallback').checked = true;
+      document.getElementById('bachelor-major-name').value = '数学与应用数学';
+      document.getElementById('bachelor-major-code').value = '070101';
+      document.getElementById('work-years').value = '2';
+      document.querySelectorAll('input[name="certs"]').forEach(el => el.checked = false);
+      document.getElementById('custom-certs').value = '';
+      document.querySelector('input[name="examType"][value="all"]').checked = true;
+      document.getElementById('exclude-shift').checked = false;
+      document.getElementById('exclude-service').checked = false;
+
+      updateAgePreview();
+      syncPillStyles();
+      runScreening();
+      showToast('已填入示例条件并完成筛选');
+    }
+
+    function resetCriteria() {
+      document.getElementById('birth-year').value = '1998';
+      document.querySelector('input[name="politics"][value="non_party"]').checked = true;
+      document.querySelectorAll('input[name="special"]').forEach(el => el.checked = false);
+      document.querySelector('input[name="education"][value="bachelor"]').checked = true;
+      document.getElementById('major-name').value = '';
+      document.getElementById('major-code').value = '';
+      document.getElementById('enable-bachelor-fallback').checked = false;
+      document.getElementById('bachelor-major-name').value = '';
+      document.getElementById('bachelor-major-code').value = '';
+      document.getElementById('work-years').value = '0';
+      document.querySelectorAll('input[name="certs"]').forEach(el => el.checked = false);
+      document.getElementById('custom-certs').value = '';
+      document.querySelector('input[name="examType"][value="all"]').checked = true;
+      document.getElementById('exclude-shift').checked = false;
+      document.getElementById('exclude-service').checked = false;
+      document.getElementById('result-search').value = '';
+      APP_STATE.searchQuery = '';
+
+      updateAgePreview();
+      syncPillStyles();
+      runScreening();
+      showToast('已重置筛选条件');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // 绑定上传区拖拽与点击事件
+      const dropzone = document.getElementById('dropzone');
+      const fileInput = document.getElementById('excel-input');
+
+      dropzone.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          parseExcelFile(e.target.files[0]);
+          fileInput.value = '';
+        }
+      });
+
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('drag-over');
+      });
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          parseExcelFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      // 恢复演示数据
+      document.getElementById('btn-restore-demo').addEventListener('click', () => {
+        APP_STATE.jobs = [...DEMO_JOBS];
+        APP_STATE.fileName = '内置演示表：成都市事业编精选样例.xlsx';
+        updateFileStatusUI();
+        runScreening();
+        showToast('已恢复内置 8 条演示岗位数据');
+      });
+
+      // 表单事件监听
+      document.getElementById('birth-year').addEventListener('input', updateAgePreview);
+      document.getElementById('filter-form').addEventListener('change', syncPillStyles);
+      document.getElementById('btn-run-filter').addEventListener('click', () => {
+        runScreening();
+        showToast(`筛选完成：🟢 ${APP_STATE.greenList.length} 岗确定可报，🟡 ${APP_STATE.yellowList.length} 岗待核实`);
+      });
+      document.getElementById('btn-reset').addEventListener('click', resetCriteria);
+      document.getElementById('btn-fill-demo').addEventListener('click', fillDemoCriteria);
+
+      // Tab 切换
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          APP_STATE.activeTab = btn.dataset.tab;
+          document.querySelectorAll('.tab-btn').forEach(b => {
+            const active = b.dataset.tab === APP_STATE.activeTab;
+            if (active) {
+              if (b.dataset.tab === 'green') {
+                b.style.background = '#ddf0d8';
+                b.style.color = '#2b5926';
+              } else if (b.dataset.tab === 'yellow') {
+                b.style.background = '#fcf4cd';
+                b.style.color = '#7a5f14';
+              } else {
+                b.style.background = '#e0d4f7';
+                b.style.color = '#4f377a';
+              }
+            } else {
+              b.style.background = '#f5f3fa';
+              b.style.color = '#534b62';
+            }
+          });
+          renderResults();
+        });
+      });
+
+      // 结果区关键字搜索
+      document.getElementById('result-search').addEventListener('input', (e) => {
+        APP_STATE.searchQuery = e.target.value;
+        renderResults();
+      });
+
+      // 导出与复制按钮
+      document.getElementById('btn-copy-report').addEventListener('click', buildWechatReport);
+      document.getElementById('btn-export-excel').addEventListener('click', exportFilteredExcel);
+
+      // 初始运行一次（默认展示示例画像筛选结果）
+      updateAgePreview();
+      syncPillStyles();
+      updateFileStatusUI();
+      runScreening();
+    });
+  </script>
+</body>
+</html>
